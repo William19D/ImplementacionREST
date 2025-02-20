@@ -3,6 +3,7 @@ package co.edu.uniquindio.implementacionrestful.controller;
 import co.edu.uniquindio.implementacionrestful.dto.UserRegistrationRequest;
 import co.edu.uniquindio.implementacionrestful.dto.UserResponse;
 import co.edu.uniquindio.implementacionrestful.model.Usuario;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +19,11 @@ public class UserController {
 
     // ✅ POST - Crear Usuario
     @PostMapping
-    public ResponseEntity<UserResponse> createUser(@RequestBody UserRegistrationRequest request) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody UserRegistrationRequest request) {
+        if (request.email().isBlank() || request.fullName().isBlank()) {
+            return ResponseEntity.badRequest().body("El email y el nombre no pueden estar vacíos");
+        }
+
         Usuario usuario = new Usuario(idCounter++, request.fullName(), request.email(), request.dateBirth());
         usuarios.add(usuario);
         return ResponseEntity.ok(new UserResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getFechaNacimiento()));
@@ -26,39 +31,54 @@ public class UserController {
 
     // ✅ GET - Obtener todos los usuarios
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
+    public ResponseEntity<?> getAllUsers() {
+        if (usuarios.isEmpty()) {
+            return ResponseEntity.badRequest().body("No hay usuarios registrados.");
+        }
+
         List<UserResponse> response = usuarios.stream()
                 .map(u -> new UserResponse(u.getId(), u.getNombre(), u.getEmail(), u.getFechaNacimiento()))
                 .toList();
         return ResponseEntity.ok(response);
     }
 
-    // ✅ GET - Obtener un usuario por ID
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+    public ResponseEntity<Object> getUserById(@PathVariable Long id) {
         Optional<Usuario> usuario = usuarios.stream().filter(u -> u.getId().equals(id)).findFirst();
-        return usuario.map(u -> ResponseEntity.ok(new UserResponse(u.getId(), u.getNombre(), u.getEmail(), u.getFechaNacimiento())))
-                .orElse(ResponseEntity.notFound().build());
+
+        if (usuario.isPresent()) {
+            Usuario u = usuario.get();
+            return ResponseEntity.ok(new UserResponse(u.getId(), u.getNombre(), u.getEmail(), u.getFechaNacimiento()));
+        } else {
+            return ResponseEntity.badRequest().body("Usuario no encontrado con ID: " + id);
+        }
     }
+
 
     // ✅ PUT - Actualizar un usuario
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @RequestBody UserRegistrationRequest request) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserRegistrationRequest request) {
         Optional<Usuario> usuarioOptional = usuarios.stream().filter(u -> u.getId().equals(id)).findFirst();
-        if (usuarioOptional.isPresent()) {
-            Usuario usuario = usuarioOptional.get();
-            usuario.setNombre(request.fullName());
-            usuario.setEmail(request.email());
-            usuario.setFechaNacimiento(request.dateBirth());
-            return ResponseEntity.ok(new UserResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getFechaNacimiento()));
+
+        if (usuarioOptional.isEmpty()) {
+            return ResponseEntity.badRequest().body("No se encontró un usuario con ID: " + id);
         }
-        return ResponseEntity.notFound().build();
+
+        Usuario usuario = usuarioOptional.get();
+        usuario.setNombre(request.fullName());
+        usuario.setEmail(request.email());
+        usuario.setFechaNacimiento(request.dateBirth());
+
+        return ResponseEntity.ok(new UserResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getFechaNacimiento()));
     }
 
     // ✅ DELETE - Eliminar un usuario
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         boolean removed = usuarios.removeIf(u -> u.getId().equals(id));
-        return removed ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        if (!removed) {
+            return ResponseEntity.badRequest().body("No se encontró un usuario con ID: " + id);
+        }
+        return ResponseEntity.noContent().build();
     }
 }

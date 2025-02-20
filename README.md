@@ -19,8 +19,3 @@ Este proyecto es una API RESTful desarrollada en **Spring Boot** que permite la 
 - **Spring Validation**
 - **SpringDoc OpenAPI**
 - **Gradle**
-
----
-
-## 📂 Estructura del Proyecto
-

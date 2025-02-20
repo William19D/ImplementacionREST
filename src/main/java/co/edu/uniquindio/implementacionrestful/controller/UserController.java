@@ -3,7 +3,11 @@ package co.edu.uniquindio.implementacionrestful.controller;
 import co.edu.uniquindio.implementacionrestful.dto.UserRegistrationRequest;
 import co.edu.uniquindio.implementacionrestful.dto.UserResponse;
 import co.edu.uniquindio.implementacionrestful.model.Usuario;
+import co.edu.uniquindio.implementacionrestful.repository.UsuarioRepository;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +20,12 @@ import java.util.Optional;
 public class UserController {
     private final List<Usuario> usuarios = new ArrayList<>();
     private Long idCounter = 1L;
+
+    private final UsuarioRepository usuarioRepository;
+
+    public UserController(UsuarioRepository usuarioRepository) {
+        this.usuarioRepository = usuarioRepository;
+    }
 
     // ✅ POST - Crear Usuario
     @PostMapping
@@ -31,15 +41,13 @@ public class UserController {
 
     // ✅ GET - Obtener todos los usuarios
     @GetMapping
-    public ResponseEntity<?> getAllUsers() {
-        if (usuarios.isEmpty()) {
-            return ResponseEntity.badRequest().body("No hay usuarios registrados.");
-        }
+    public ResponseEntity<Page<Usuario>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
 
-        List<UserResponse> response = usuarios.stream()
-                .map(u -> new UserResponse(u.getId(), u.getNombre(), u.getEmail(), u.getFechaNacimiento()))
-                .toList();
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Usuario> usuarios = usuarioRepository.findAll(pageable);
+        return ResponseEntity.ok(usuarios);
     }
 
     @GetMapping("/{id}")

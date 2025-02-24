@@ -11,15 +11,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    private final List<Usuario> usuarios = new ArrayList<>();
-    private Long idCounter = 1L;
 
     private final UsuarioRepository usuarioRepository;
 
@@ -34,12 +30,13 @@ public class UserController {
             return ResponseEntity.badRequest().body("El email y el nombre no pueden estar vacíos");
         }
 
-        Usuario usuario = new Usuario(idCounter++, request.fullName(), request.email(), request.dateBirth());
-        usuarios.add(usuario);
+        Usuario usuario = new Usuario(null, request.fullName(), request.email(), request.dateBirth());
+        usuarioRepository.save(usuario);
+
         return ResponseEntity.ok(new UserResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getFechaNacimiento()));
     }
 
-    // ✅ GET - Obtener todos los usuarios
+    // ✅ GET - Obtener todos los usuarios con paginación
     @GetMapping
     public ResponseEntity<Page<Usuario>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
@@ -50,9 +47,10 @@ public class UserController {
         return ResponseEntity.ok(usuarios);
     }
 
+    // ✅ GET - Obtener usuario por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Object> getUserById(@PathVariable Long id) {
-        Optional<Usuario> usuario = usuarios.stream().filter(u -> u.getId().equals(id)).findFirst();
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+        Optional<Usuario> usuario = usuarioRepository.findById(id);
 
         if (usuario.isPresent()) {
             Usuario u = usuario.get();
@@ -66,7 +64,7 @@ public class UserController {
     // ✅ PUT - Actualizar un usuario
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserRegistrationRequest request) {
-        Optional<Usuario> usuarioOptional = usuarios.stream().filter(u -> u.getId().equals(id)).findFirst();
+        Optional<Usuario> usuarioOptional = usuarioRepository.findById(id);
 
         if (usuarioOptional.isEmpty()) {
             return ResponseEntity.badRequest().body("No se encontró un usuario con ID: " + id);
@@ -77,16 +75,18 @@ public class UserController {
         usuario.setEmail(request.email());
         usuario.setFechaNacimiento(request.dateBirth());
 
+        usuarioRepository.save(usuario);
         return ResponseEntity.ok(new UserResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getFechaNacimiento()));
     }
 
     // ✅ DELETE - Eliminar un usuario
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
-        boolean removed = usuarios.removeIf(u -> u.getId().equals(id));
-        if (!removed) {
+        if (!usuarioRepository.existsById(id)) {
             return ResponseEntity.badRequest().body("No se encontró un usuario con ID: " + id);
         }
+
+        usuarioRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }
